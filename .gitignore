@@ -4,7 +4,6 @@ node_modules/
 venv/
 *.log
 .DS_Store
-data/*.csv
+data/trips*.csv
+my_msltd_montreal/features.npy
 *.npy
-my_msltd_montreal/
-
