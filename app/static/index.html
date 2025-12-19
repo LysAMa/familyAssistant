@@ -1,0 +1,862 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Family Assistant</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#05060b" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+    :root{
+      --bg:#05060b;
+      --card:#0c1020;
+      --muted:#94a3b8;
+      --primary:#7c3aed;
+      --primary-2:#22d3ee;
+      --border:rgba(255,255,255,0.08);
+      --text:#e2e8f0;
+    }
+    *{box-sizing:border-box;}
+    button{border:none;}
+    body{
+      margin:0;
+      background:
+        radial-gradient(circle at 18% 20%,rgba(34,211,238,0.18),transparent 28%),
+        radial-gradient(circle at 80% 0%,rgba(124,58,237,0.22),transparent 24%),
+        var(--bg);
+      color:var(--text);
+      font:16px/1.5 'Space Grotesk',system-ui,sans-serif;
+      min-height:100vh;
+    }
+    header{
+      padding:32px 28px 18px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+    }
+    h1{margin:0;font-size:30px;letter-spacing:-0.4px;}
+    .tag{padding:6px 12px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:13px;display:inline-flex;align-items:center;gap:6px;}
+    .shell{max-width:1040px;margin:0 auto;padding:0 24px 48px;}
+    .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:start;}
+    @media(max-width:900px){.grid{grid-template-columns:1fr;}}
+    .card{background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(34,211,238,0.08));border:1px solid var(--border);border-radius:20px;padding:18px;box-shadow:0 20px 60px rgba(0,0,0,0.35);}
+    .card.secondary{background:linear-gradient(135deg,rgba(34,211,238,0.12),rgba(124,58,237,0.08));}
+    .section-title{font-weight:700;margin-bottom:10px;font-size:17px;}
+    .row{margin-top:12px;color:var(--muted);}
+    .field{gap:10px;align-items:center;position:relative;}
+    input{
+      width:100%;
+      padding:12px 14px;
+      border-radius:12px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,0.05);
+      color:var(--text);
+      outline:none;
+      font:inherit;
+    }
+    input::placeholder{color:rgba(226,232,240,0.65);}
+    .btn{
+      background:linear-gradient(120deg,var(--primary),var(--primary-2));
+      border:none;
+      border-radius:12px;
+      padding:10px 14px;
+      color:#fff;
+      cursor:pointer;
+      font-weight:700;
+      box-shadow:0 8px 22px rgba(124,58,237,0.35);
+      transition:transform 0.05s ease;
+      white-space:nowrap;
+    }
+    .btn:active{transform:translateY(1px);}
+    .ghost{background:transparent;border:none;box-shadow:none;}
+    #dest-results{
+      position:absolute;top:52px;left:0;right:0;background:#0b1226;border:1px solid var(--border);border-radius:12px;display:none;max-height:220px;overflow:auto;z-index:10;
+    }
+    #panel{display:grid;}
+    .pill{padding:6px 10px;border-radius:10px;background:rgba(255,255,255,0.06);border:1px solid var(--border);display:inline-flex;gap:8px;align-items:center;color:var(--text);font-size:13px;}
+    .stat{display:flex;align-items:center;gap:10px;margin-top:12px;}
+    .stat .value{font-size:18px;font-weight:700;color:#fff;}
+    .stat .label{color:var(--muted);font-size:13px;}
+    .bubble{position:fixed;right:16px;bottom:16px;width:60px;height:60px;border-radius:50%;background:linear-gradient(120deg,var(--primary),var(--primary-2));border:none;display:grid;place-items:center;font-weight:800;cursor:pointer;z-index:10001;user-select:none;touch-action:none;box-shadow:0 10px 26px rgba(0,0,0,0.35);}
+    .small{color:var(--muted);font-size:12px;}
+    .event-btn{
+      min-width:110px;
+      flex-shrink:0;
+      text-align:center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="tag">Family Assistant</div>
+      <h1>Family Assistant</h1>
+    </div>
+    <div class="pill">Prêt à optimiser votre départ</div>
+  </header>
+
+  <div class="shell">
+    <div class="grid" id="panel">
+      <div class="card secondary">
+        <div class="section-title">Planifier votre trajet</div>
+        <div class="row small">Destination (tapez une adresse à Montréal)</div>
+        <div class="row field">
+          <input id="dest-search" type="text" placeholder="Pavillon Roger-Gaudry, Montréal, QC H3T 1J4" autocomplete="off" oninput="geocode(this.value)">
+          <div id="dest-results"></div>
+          <button class="btn" onclick="load()">Go</button>
+        </div>
+        <!-- <div class="row">
+          <button class="btn ghost" onclick="explain()" style="width:100%;">Ai-je oublié quelque chose ?</button>
+        </div> -->
+        <div id="explain-panel" class="row small" style="display:none;border:1px solid var(--border);border-radius:12px;padding:10px;background:rgba(255,255,255,0.04);">
+          <div style="font-weight:700;margin-bottom:4px;">Explication</div>
+          <div id="exp"></div>
+        </div>
+        <!-- <div class="row field">
+          <input id="agent-query" type="text" placeholder="Conseil court pour ce trajet ?">
+        </div> -->
+        <!-- <div class="row">
+          <button class="btn" style="width:100%;" onclick="askLeaveNow()">Dois-je partir maintenant ou attendre 30 minutes ?</button>
+        </div>
+        <div class="row small" id="agent-advice"></div> -->
+
+        <div class="row" style="margin-top:18px;">
+          <div class="section-title" style="margin:0;">Planifier un départ</div>
+        </div>
+        <div class="row field">
+          <input id="event-title" type="text" placeholder="Titre de l’événement (ex: Aller au bureau)">
+        </div>
+        <div class="row field">
+          <input id="event-datetime" type="datetime-local">
+        </div>
+        <div class="row field">
+          <select id="event-persona" style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:var(--text);font:inherit;">
+            <option value="">Choisir un membre de la famille</option>
+          </select>
+        </div>
+        <div class="row">
+          <button class="btn ghost" style="width:100%;" onclick="addCalendarEvent()">Ajouter à l’agenda</button>
+        </div>
+        <div class="row small" id="event-status"></div>
+        <div class="row small" style="font-weight:700;">Événements enregistrés</div>
+        <div class="row small" id="events-list" style="border:1px solid var(--border);border-radius:12px;padding:10px;background:rgba(255,255,255,0.04);"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">En direct</div>
+        <div class="stat">
+          <div class="value" id="origin">Origine: —</div>
+          <div class="label">Position actuelle</div>
+        </div>
+        <div class="stat">
+          <div class="value" id="wx">Météo: —</div>
+          <div class="label">Température </div>
+        </div>
+        <div class="stat">
+          <div class="value" id="eta">ETA: —</div>
+          <div class="label">Multi-modal</div>
+        </div>
+        <div class="stat">
+          <div class="value" id="ml-prediction">ETA historique Montréal: —</div>
+          <div class="label">Basé sur les données Bluetooth (GCRNN)</div>
+        </div>
+        <div class="row small" id="alert-status"></div>
+        <div class="row small" style="display:flex;gap:8px;align-items:center;">
+          <button id="install-btn" class="btn ghost" style="flex:1;display:none;" onclick="installApp()">Installer l’app</button>
+          <span id="install-hint" style="display:none;">Disponible en PWA</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bubble" id="bubble" onclick="togglePanel()">RW</div>
+
+  <script>
+    let open = true;
+    let selectedDest = null;
+    let deferredPrompt = null;
+    let dragState = null;
+    let pollTimer = null;
+    let seenAlerts = [];
+    let notificationSetup = false;
+    const EVENTS_KEY = 'rw_planned_events';
+    const FAMILY_CACHE_KEY = 'rw_family_members';
+    const FAMILY_FALLBACK = [
+      { name: 'Alex' },
+      { name: 'Sam' },
+      { name: 'Liam' },
+      { name: 'Zoe' },
+    ];
+    let familyMembers = [...FAMILY_FALLBACK];
+
+    async function togglePanel(){
+      open = !open;
+      const panel = document.getElementById('panel');
+      panel.style.display = open ? 'grid' : 'none';
+      if(open){
+        fetchFamilyMembers();
+        renderPlannedEvents();
+        if(selectedDest){ load(); }
+      }
+    }
+
+    async function getLocation(){
+      return new Promise((res, rej)=>{
+        if(!navigator.geolocation) return rej(new Error('Géoloc indisponible'));
+        navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude, lon:p.coords.longitude}), rej);
+      });
+    }
+
+    async function load(){
+      try{
+        await ensureNotifications();
+        const coords = await getLocation();
+        updateOrigin(coords);
+        const dest = getDestination();
+        const wxr = await fetch(`/api/weather?lat=${coords.lat}&lon=${coords.lon}`);
+        const wx = await wxr.json();
+        document.getElementById('wx').textContent = wx.error ? ('Météo: ' + wx.error) :
+          `Météo: ${Math.round(wx.current.tempC)}°C, ${(wx.current.condition||'').toLowerCase()}`;
+
+        const etar = await fetch(`/api/eta/all?o_lat=${coords.lat}&o_lon=${coords.lon}&d_lat=${dest.lat}&d_lon=${dest.lon}`);
+        const eta = await etar.json();
+        const legs = eta.legs || [];
+        if(!legs.length){
+          document.getElementById('eta').textContent = eta.error ? ('ETA: ' + eta.error) : 'ETA: —';
+          document.getElementById('ml-prediction').textContent = eta.error ? ('Prédiction modèle: ' + eta.error) : 'Prédiction modèle: —';
+        }else{
+          const msg = legs.map(l=>{
+            if(l.error) return `${labelMode(l.mode)}: ${l.error}`;
+            return `${labelMode(l.mode)}: ${fmtEta(l.etaMinutes)} — ${l.distanceKm} km`;
+          }).join(' | ');
+          document.getElementById('eta').textContent = msg;
+          renderModelPrediction(legs);
+        }
+
+        window._legs = legs;
+        window._wx = wx;
+        await saveRoute(coords, dest);
+      }catch(e){
+        document.getElementById('wx').textContent = 'Erreur: ' + e.message;
+        document.getElementById('eta').textContent = e.message || '—';
+        document.getElementById('ml-prediction').textContent = 'Prédiction modèle: ' + (e.message || '—');
+      }
+    }
+    function renderModelPrediction(legs){
+      const row = document.getElementById('ml-prediction');
+      if(!row){
+        console.warn('[routewise] #ml-prediction introuvable dans le DOM');
+        return;
+      }
+
+      // Valeur par défaut
+      let message = 'ETA historique Montréal: —';
+
+      if(!Array.isArray(legs) || !legs.length){
+        console.log('[routewise] renderModelPrediction: pas de legs, message =', message);
+        row.textContent = message;
+        return message;
+      }
+
+      // Chercher une jambe qui a une prédiction ML valide
+      const best = legs.find(l => Number.isFinite(l.etaModelMinutes));
+
+      if (best){
+        const modeLabel = labelMode(best.mode);
+        const provider = best.etaModelProvider || 'modèle';
+        message = `ETA historique Montréal: ${fmtEta(best.etaModelMinutes)} (${modeLabel}, ${provider})`;
+
+        // Optionnel : comparaison vs ORS si dispo
+        if (Number.isFinite(best.etaMinutes)) {
+          const delta = best.etaModelMinutes - best.etaMinutes;
+          const sign = delta > 0 ? '+' : '';
+          message = `${message}, ${sign}${Math.round(delta)} min vs ORS`;
+        }
+
+        row.textContent = message;
+        console.log('[routewise] renderModelPrediction: best leg =', best);
+        console.log('[routewise] renderModelPrediction: message =', message);
+        return message;
+      }
+
+      // Sinon, voir si une erreur ML existe
+      const errLeg = legs.find(l => l.etaModelError);
+      if (errLeg){
+        message = `ETA historique Montréal: ${errLeg.etaModelError}`;
+        row.textContent = message;
+        console.log('[routewise] renderModelPrediction: erreur modèle =', errLeg.etaModelError);
+        return message;
+      }
+
+      // Aucun modèle / aucune erreur
+      row.textContent = message;
+      console.log('[routewise] renderModelPrediction: aucun etaModelMinutes ni etaModelError, message =', message);
+      return message;
+    }
+
+    async function explain(){
+      const panel = document.getElementById('explain-panel');
+      panel.style.display = 'block';
+      document.getElementById('exp').textContent = '…';
+      const legs = window._legs || [];
+      try{
+        const origin = await getLocation();
+        const dest = getDestination();
+        const payload = { query: 'Explique pourquoi ce mode est recommandé.', origin, dest, mode: (legs[0] && legs[0].mode) || 'driving' };
+        const r = await fetch('/api/agent', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+        const data = await r.json();
+        document.getElementById('exp').textContent = data.recommendation || data.explanation || data.error || '—';
+      }catch(e){
+        document.getElementById('exp').textContent = 'Erreur: ' + e.message;
+      }
+    }
+
+    async function agent(){
+      const adviceEl = document.getElementById('agent-advice');
+      adviceEl.textContent = '…';
+      const query = (document.getElementById('agent-query').value || 'Recommande le meilleur mode.').slice(0,200);
+      const legs = window._legs || [];
+      const mode = (legs[0] && legs[0].mode) || 'driving';
+      const origin = await getLocation().catch(err=>{ throw err; });
+      const dest = getDestination();
+      const payload = { query, origin, dest, mode };
+      try{
+        const res = await fetch('/api/agent', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const data = await res.json();
+        adviceEl.textContent = data.recommendation || data.error || '—';
+      }catch(e){
+        adviceEl.textContent = 'Erreur: ' + e.message;
+      }
+    }
+
+    function askLeaveNow(){
+      const preset = 'Dois-je partir maintenant ou attendre 30 minutes ?';
+      const input = document.getElementById('agent-query');
+      if(input){ input.value = preset; }
+      agent();
+    }
+
+    async function saveRoute(originOverride, destOverride){
+      try{
+        const origin = originOverride || await getLocation();
+        const dest = destOverride || getDestination();
+        const label = document.getElementById('dest-search').value || 'Route';
+        const body = { label, origin, dest, mode: 'driving' };
+        const r = await fetch('/api/routes', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+        const data = await r.json();
+        document.getElementById('alert-status').textContent = data.id ? 'Route surveillée.' : (data.error || 'Erreur');
+        startAlertPolling();
+      }catch(e){
+        document.getElementById('alert-status').textContent = 'Erreur: ' + e.message;
+      }
+    }
+
+    function loadPlannedEvents(){
+      try{
+        const raw = localStorage.getItem(EVENTS_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        if(Array.isArray(parsed)) return parsed;
+      }catch(e){}
+      return [];
+    }
+
+    function savePlannedEvents(events){
+      try{ localStorage.setItem(EVENTS_KEY, JSON.stringify(events)); }catch(e){}
+    }
+
+    async function fetchFamilyMembers(){
+      try{
+        const res = await fetch('/api/family');
+        const data = await res.json();
+        const incoming = Array.isArray(data.members) ? data.members : [];
+        familyMembers = incoming.length ? incoming : [...FAMILY_FALLBACK];
+        try{ localStorage.setItem(FAMILY_CACHE_KEY, JSON.stringify(familyMembers)); }catch(_e){}
+        populatePersonaSelect();
+      }catch(e){
+        console.warn('[routewise] impossible de charger les membres', e);
+        try{
+          const cached = JSON.parse(localStorage.getItem(FAMILY_CACHE_KEY) || '[]');
+          if(Array.isArray(cached) && cached.length){
+            familyMembers = cached;
+            populatePersonaSelect();
+          }
+        }catch(_e){}
+        if(!familyMembers.length){
+          familyMembers = [...FAMILY_FALLBACK];
+          populatePersonaSelect();
+        }
+      }
+    }
+
+    function populatePersonaSelect(){
+      const select = document.getElementById('event-persona');
+      if(!select) return;
+      select.innerHTML = '<option value=\"\">Choisir un membre de la famille</option>';
+      familyMembers.forEach(m=>{
+        const opt = document.createElement('option');
+        opt.value = m.name || '';
+        opt.textContent = m.name || 'Membre';
+        select.appendChild(opt);
+      });
+      select.disabled = !familyMembers.length;
+    }
+
+    function renderPlannedEvents(){
+      const box = document.getElementById('events-list');
+      if(!box) return;
+      const events = loadPlannedEvents().sort((a,b)=>new Date(a.when||0)-new Date(b.when||0));
+      if(!events.length){
+        box.textContent = 'Aucun événement planifié.';
+        return;
+      }
+      box.innerHTML = '';
+      events.forEach(ev=>{
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.gap = '10px';
+        row.style.marginBottom = '8px';
+        const label = document.createElement('div');
+        const personaText = ev.persona ? ` • ${ev.persona}` : '';
+        label.textContent = (ev.title || 'Événement') + personaText;
+        const dt = document.createElement('div');
+        dt.style.color = '#cbd5e1';
+        const d = ev.when ? new Date(ev.when) : null;
+        dt.textContent = d ? d.toLocaleString('fr-CA', { dateStyle:'short', timeStyle:'short' }) : '';
+        const advice = document.createElement('div');
+        advice.className = 'small';
+        advice.style.marginTop = '4px';
+        advice.style.color = '#cbd5e1';
+        const btn = document.createElement('button');
+        btn.className = 'btn ghost event-btn';
+        btn.style.padding = '6px 10px';
+        btn.style.fontSize = '12px';
+        btn.textContent = 'Conseil';
+        btn.onclick = () => {
+          adviseEvent(ev, advice);  // LLM conseil
+          showEventEta(ev);         // 🔁 ETA modèle GCRNN basé sur ev.origin / ev.dest
+        };
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn ghost event-btn';
+        deleteBtn.style.padding = '6px 10px';
+        deleteBtn.style.fontSize = '12px';
+        deleteBtn.style.borderColor = '#ef4444';
+        deleteBtn.style.color = '#fecdd3';
+        deleteBtn.textContent = 'Supprimer';
+        deleteBtn.onclick = ()=> deletePlannedEvent(ev);
+        const left = document.createElement('div');
+        left.appendChild(label);
+        const predictionText = describePrediction(ev.prediction);
+        if(predictionText){
+          const pred = document.createElement('div');
+          pred.className = 'small';
+          pred.style.marginTop = '4px';
+          pred.style.color = '#cbd5e1';
+          pred.textContent = predictionText;
+          left.appendChild(pred);
+        }
+        const loc = document.createElement('div');
+        loc.className = 'small';
+        loc.style.marginTop = '4px';
+        loc.style.color = '#cbd5e1';
+        loc.textContent = formatLocations(ev.origin, ev.dest);
+        left.appendChild(loc);
+        left.appendChild(advice);
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '6px';
+        actions.appendChild(btn);
+        actions.appendChild(deleteBtn);
+        row.appendChild(left);
+        row.appendChild(dt);
+        row.appendChild(actions);
+        box.appendChild(row);
+      });
+    }
+
+    async function addCalendarEvent(){
+      const title = (document.getElementById('event-title').value || '').trim();
+      const when = document.getElementById('event-datetime').value;
+      const persona = (document.getElementById('event-persona').value || '').trim();
+      const status = document.getElementById('event-status');
+
+      if(!when){
+        if(status) status.textContent = 'Choisir une date et une heure.';
+        return;
+      }
+
+      let dest = null;
+      let origin = null;
+      try{
+        dest = getDestination();              // lit selectedDest (déjà choisi via geocode)
+        origin = await getLocation();         // maintenant OK car la fonction est async
+      }catch(e){
+        if(status) status.textContent = 'Sélectionnez une destination.';
+        return;
+      }
+
+      let wx = null;
+      try{
+        const wxRes = await fetch(`/api/weather?lat=${dest.lat}&lon=${dest.lon}`);
+        wx = await wxRes.json();
+      }catch(_e){}
+
+      let prediction = null;
+      try{
+        const etaRes = await fetch(`/api/eta?o_lat=${origin.lat}&o_lon=${origin.lon}&d_lat=${dest.lat}&d_lon=${dest.lon}`);
+        const etaData = await etaRes.json();
+        prediction = {
+          etaMinutes: Number.isFinite(etaData.etaMinutes) ? etaData.etaMinutes : null,
+          etaModelMinutes: Number.isFinite(etaData.etaModelMinutes) ? etaData.etaModelMinutes : null,
+          etaModelProvider: etaData.etaModelProvider || 'gcrnn_modele',
+          provider: etaData.provider || null,
+          error: etaData.error,
+        };
+      }catch(_e){}
+
+      const events = loadPlannedEvents();
+      events.push({
+        title: title || 'Trajet planifié',
+        when,
+        persona,
+        origin,
+        dest,
+        weather: wx,
+        prediction
+      });
+      savePlannedEvents(events);
+
+      if(status){
+        status.textContent = 'Événement ajouté (origine/destination/météo/membre/date sauvegardés).';
+      }
+      renderPlannedEvents();
+    }
+
+
+    function deletePlannedEvent(ev){
+      const events = loadPlannedEvents();
+      const next = events.filter(e=>!(e.title === ev.title && e.when === ev.when && e.persona === ev.persona));
+      savePlannedEvents(next);
+      renderPlannedEvents();
+    }
+
+    async function adviseEvent(ev, targetEl){
+      if(targetEl) targetEl.textContent = '…';
+      try{
+        const origin = ev.origin || await getLocation();
+        const dest = ev.dest || getDestination();
+        const query = `Conseil pour ${ev.title || 'cet événement'} (${ev.when || ''})`;
+        const family = {
+          members: [{ name: ev.persona || 'Invité', role: 'guest', can_drive: false }],
+          schedule: [{
+            person: ev.persona || 'Invité',
+            event: ev.title || 'Trajet',
+            start_time: ev.when,
+            location: dest.label || `${dest.lat},${dest.lon}`,
+            needs_driver: true,
+          }],
+          rules: ["Kids never travel alone; adults drive themselves."],
+        };
+        const payload = { query, origin, dest, mode: 'driving', family };
+        const res = await fetch('/api/agent', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const data = await res.json();
+        const advice = data.recommendation || (data.data && data.data.family_plan && data.data.family_plan.advice && data.data.family_plan.advice[0] && (data.data.family_plan.advice[0].llm_advice || data.data.family_plan.advice[0].notes));
+        if(targetEl) targetEl.textContent = advice || '—';
+      }catch(e){
+        if(targetEl) targetEl.textContent = 'Erreur: ' + (e.message || e);
+      }
+    }
+
+    let notificationsEnabled = false;
+    async function ensureNotifications(){
+      if(notificationSetup || !('Notification' in window)) return;
+      notificationSetup = true;
+      if(Notification.permission === 'granted'){
+        notificationsEnabled = true;
+        renderNotifyBtn();
+        document.getElementById('alert-status').textContent = 'Notifications activées.';
+        startAlertPolling();
+        return;
+      }
+      try{
+        const p = await Notification.requestPermission();
+        notificationsEnabled = p === 'granted';
+        renderNotifyBtn();
+        document.getElementById('alert-status').textContent = notificationsEnabled ? 'Notifications activées.' : 'Notifications refusées.';
+        if(notificationsEnabled){ startAlertPolling(); }
+      }catch(e){
+        // ignore errors requesting permission
+      }
+    }
+
+    function toggleNotify(){
+      if(!('Notification' in window)) return;
+      if(Notification.permission === 'granted'){
+        notificationsEnabled = !notificationsEnabled;
+        renderNotifyBtn();
+        document.getElementById('alert-status').textContent = notificationsEnabled ? 'Notifications activées.' : 'Notifications désactivées.';
+        if(notificationsEnabled){ startAlertPolling(); }
+        return;
+      }
+      Notification.requestPermission().then((p)=>{
+        notificationsEnabled = p === 'granted';
+        renderNotifyBtn();
+        document.getElementById('alert-status').textContent = p === 'granted' ? 'Notifications activées.' : 'Notifications refusées.';
+        if(notificationsEnabled){ startAlertPolling(); }
+      });
+    }
+
+    function renderNotifyBtn(){
+      const btn = document.getElementById('notify-btn');
+      if(!btn) return;
+      if(notificationsEnabled){
+        btn.style.background = '#16a34a';
+        btn.style.borderColor = '#22c55e';
+      }else{
+        btn.style.background = 'transparent';
+        btn.style.borderColor = '#475569';
+      }
+    }
+
+    function startAlertPolling(){
+      if(pollTimer) return;
+      pollTimer = setInterval(checkAlerts, 60000);
+      checkAlerts();
+    }
+
+    async function checkAlerts(){
+      try{
+      const r = await fetch('/api/alerts');
+      const data = await r.json();
+      const alerts = data.alerts || [];
+      if(!alerts.length) return;
+      alerts.forEach(a=>{
+        const key = `${a.routeId}-${a.message}`;
+        if(seenAlerts.includes(key)) return;
+        seenAlerts.push(key);
+        document.getElementById('alert-status').textContent = a.message;
+        if(notificationsEnabled && Notification.permission === 'granted'){
+          new Notification('RouteWise', { body: a.message });
+        }
+      });
+    }catch(e){
+      // silent
+      }
+    }
+
+    function fmtEta(mins){
+      if(!Number.isFinite(mins)) return '—';
+      const h = Math.floor(mins / 60);
+      const m = Math.round(mins % 60);
+      if(h && m) return `${h}h ${m}min`;
+      if(h) return `${h}h`;
+      return `${m} min`;
+    }
+
+    function describePrediction(pred){
+      if(!pred) return '';
+      if(pred.error) return `ETA modèle indisponible: ${pred.error}`;
+      if(Number.isFinite(pred.etaModelMinutes)){
+        const provider = pred.etaModelProvider || 'gcrnn_modele';
+        return `ETA ${provider}: ${Math.round(pred.etaModelMinutes)} min`;
+      }
+      if(Number.isFinite(pred.etaMinutes)){
+        const provider = pred.provider || 'ors';
+        return `ETA ${provider}: ${Math.round(pred.etaMinutes)} min`;
+      }
+      return '';
+    }
+
+    function formatLocations(origin, dest){
+      const fmtPoint = (p)=>{
+        if(!p) return '—';
+        if(p.label) return p.label;
+        if(Number.isFinite(p.lat) && Number.isFinite(p.lon)){
+          return `${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}`;
+        }
+        return '—';
+      };
+      return `Origine: ${fmtPoint(origin)} → Destination: ${fmtPoint(dest)}`;
+    }
+
+    function labelMode(m){
+      if(m === 'driving') return 'Auto';
+      if(m === 'cycling') return 'Vélo';
+      if(m === 'walking') return 'Marche';
+      return m || 'Mode';
+    }
+
+    function getDestination(){
+      if(selectedDest && Number.isFinite(selectedDest.lat) && Number.isFinite(selectedDest.lon)){
+        return selectedDest;
+      }
+      throw new Error('Ajouter une destination');
+    }
+
+    async function geocode(q){
+      const list = document.getElementById('dest-results');
+      list.innerHTML = '';
+      list.style.display = 'none';
+      selectedDest = null;
+      if(!q || q.length < 3){ return; }
+      const r = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`);
+      const data = await r.json();
+      if(data.error){
+        list.style.display = 'block';
+        list.innerHTML = `<div style="padding:8px 10px;color:#fca5a5;">${data.error}</div>`;
+        return;
+      }
+      const results = data.results || [];
+      if(!results.length) return;
+      list.style.display = 'block';
+      results.forEach(item=>{
+        const div = document.createElement('div');
+        div.textContent = item.label || `${item.lat}, ${item.lon}`;
+        div.style.padding = '8px 10px';
+        div.style.cursor = 'pointer';
+        div.onmouseenter = ()=>div.style.background='#18213a';
+        div.onmouseleave = ()=>div.style.background='transparent';
+        div.onclick = ()=>{
+          selectedDest = { lat: item.lat, lon: item.lon, label: item.label };
+          document.getElementById('dest-search').value = item.label || '';
+          list.style.display = 'none';
+        };
+        list.appendChild(div);
+      });
+    }
+
+    async function updateOrigin(coords){
+      const el = document.getElementById('origin');
+      el.textContent = `Origine: ${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`;
+      try{
+        const r = await fetch(`/api/geocode/reverse?lat=${coords.lat}&lon=${coords.lon}`);
+        const data = await r.json();
+        const best = (data.results || [])[0];
+        if(best && best.label){
+          el.textContent = `Origine: ${best.label}`;
+        }
+      }catch(e){
+        // keep coords display
+      }
+    }
+
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('/sw.js');
+    }
+
+    // Handle PWA install prompt
+    window.addEventListener('beforeinstallprompt', (e)=>{
+      e.preventDefault();
+      deferredPrompt = e;
+      const btn = document.getElementById('install-btn');
+      const hint = document.getElementById('install-hint');
+      if(btn){ btn.style.display = 'block'; }
+      if(hint){ hint.style.display = 'block'; }
+    });
+
+    async function installApp(){
+      if(!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      if(choice.outcome === 'accepted'){
+        document.getElementById('install-btn').textContent = 'Installée';
+      }
+      deferredPrompt = null;
+    }
+
+    // Draggable bubble to avoid covering page content
+    const bubble = document.getElementById('bubble');
+    (function restoreBubble(){
+      const saved = localStorage.getItem('bubblePos');
+      if(!saved) return;
+      try{
+        const pos = JSON.parse(saved);
+        applyBubblePos(pos.x, pos.y);
+      }catch(e){}
+    })();
+
+    if(bubble){
+      bubble.addEventListener('pointerdown', (e)=>{
+        dragState = {startX:e.clientX, startY:e.clientY, origX:bubble.offsetLeft, origY:bubble.offsetTop};
+        bubble.setPointerCapture(e.pointerId);
+      });
+      bubble.addEventListener('pointermove', (e)=>{
+        if(!dragState) return;
+        const dx = e.clientX - dragState.startX;
+        const dy = e.clientY - dragState.startY;
+        const x = dragState.origX + dx;
+        const y = dragState.origY + dy;
+        applyBubblePos(x, y);
+      });
+      bubble.addEventListener('pointerup', (e)=>{
+        if(!dragState) return;
+        bubble.releasePointerCapture(e.pointerId);
+        dragState = null;
+        localStorage.setItem('bubblePos', JSON.stringify({x: bubble.offsetLeft, y: bubble.offsetTop}));
+      });
+    }
+
+    function applyBubblePos(x, y){
+      if(!bubble) return;
+      const margin = 8;
+      const maxX = window.innerWidth - bubble.offsetWidth - margin;
+      const maxY = window.innerHeight - bubble.offsetHeight - margin;
+      const clampedX = Math.max(margin, Math.min(maxX, x));
+      const clampedY = Math.max(margin, Math.min(maxY, y));
+      bubble.style.left = clampedX + 'px';
+      bubble.style.top = clampedY + 'px';
+      bubble.style.right = 'auto';
+      bubble.style.bottom = 'auto';
+    }
+
+    async function showEventEta(ev){
+      const row = document.getElementById('ml-prediction');
+      if (!row) return;
+
+      row.textContent = 'ETA historique Montréal: …';
+
+      try{
+        const origin = ev.origin;
+        const dest   = ev.dest;
+        if (!origin || !dest || !Number.isFinite(origin.lat) || !Number.isFinite(origin.lon) ||
+            !Number.isFinite(dest.lat)   || !Number.isFinite(dest.lon)) {
+          row.textContent = 'ETA historique Montréal: origine/destination invalides.';
+          return;
+        }
+
+        // 🔁 Equivalent à ton test Python, mais via HTTP et avec ev.origin / ev.dest
+        const etaRes  = await fetch(
+          `/api/eta?o_lat=${origin.lat}&o_lon=${origin.lon}` +
+          `&d_lat=${dest.lat}&d_lon=${dest.lon}`
+        );
+        const etaData = await etaRes.json();
+
+        // 👉 "print JSON" comme dans ton test
+        console.log('JSON result (event ETA):', etaData);
+
+        if (Number.isFinite(etaData.etaModelMinutes)) {
+          const provider = etaData.etaModelProvider || 'gcrnn_modele';
+          row.textContent =
+            `ETA historique Montréal: ${fmtEta(etaData.etaModelMinutes)} (driving, ${provider})`;
+        } else if (Number.isFinite(etaData.etaMinutes)) {
+          row.textContent =
+            `ETA historique Montréal (ORS): ${fmtEta(etaData.etaMinutes)}`;
+        } else {
+          row.textContent =
+            `ETA historique Montréal: ${etaData.error || 'indisponible'}`;
+        }
+      }catch(e){
+        row.textContent = 'ETA historique Montréal: ' + (e.message || 'Erreur');
+      }
+    }
+
+
+    // Initialize notification button state
+    renderNotifyBtn();
+    renderPlannedEvents();
+    fetchFamilyMembers();
+  </script>
+</body>
+</html>
