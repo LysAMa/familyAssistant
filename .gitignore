@@ -4,4 +4,8 @@ node_modules/
 venv/
 *.log
 .DS_Store
+data/trips2016.csv
+data/trips2017.csv
+data/trips2018.csv
+data/trips2019.csv
 
